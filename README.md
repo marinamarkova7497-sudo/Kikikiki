@@ -1,15 +1,29 @@
 <?php
-// Подключаем базу данных
-require_once 'bd.php';
+// Подключаем вашу базу данных
+require_once 'BD.php';
 
-try {
-    // ВАЖНО: Замените `categories` на имя вашей таблицы.
-    // А также убедитесь, что колонки title, description, icon, products_count существуют.
-    $stmt = $pdo->query("SELECT * FROM categories ORDER BY id ASC");
-    $categories = $stmt->fetchAll();
-} catch (PDOException $e) {
-    die("Ошибка при получении данных: " . $e->getMessage());
+// Делаем запрос к базе данных (используем $conn вместо $pdo)
+$sql = "
+    SELECT 
+        c.id, 
+        c.name, 
+        c.description, 
+        c.image,
+        COUNT(p.id) AS products_count
+    FROM shop_categories c
+    LEFT JOIN shop_products p ON c.id = p.category_id
+    GROUP BY c.id
+    ORDER BY c.id ASC
+";
+
+$result = mysqli_query($conn, $sql);
+
+if (!$result) {
+    die("Ошибка запроса: " . mysqli_error($conn));
 }
+
+// Получаем все данные в виде массива
+$categories = mysqli_fetch_all($result, MYSQLI_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -37,23 +51,27 @@ try {
                 <?php else: ?>
                     <?php foreach ($categories as $cat): ?>
                         <div class="category-card">
-                            <!-- Иконка -->
+                            <!-- Вывод картинки -->
                             <div class="category-icon">
-                                <?= htmlspecialchars($cat['icon'] ?? '📦') ?>
+                                <?php if (!empty($cat['image'])): ?>
+                                    <!-- Если картинки лежат в папке, например uploads, допишите путь: src="uploads/<?= htmlspecialchars($cat['image']) ?>" -->
+                                    <img src="<?= htmlspecialchars($cat['image']) ?>" alt="<?= htmlspecialchars($cat['name']) ?>" style="max-width: 100%; height: auto;">
+                                <?php else: ?>
+                                    📦 <!-- Заглушка, если нет картинки -->
+                                <?php endif; ?>
                             </div>
                             
-                            <!-- Название (если у вас колонка name, замените $cat['title'] на $cat['name']) -->
-                            <h3><?= htmlspecialchars($cat['title'] ?? 'Без названия') ?></h3>
+                            <!-- Название категории -->
+                            <h3><?= htmlspecialchars($cat['name']) ?></h3>
                             
                             <!-- Описание -->
                             <p><?= htmlspecialchars($cat['description'] ?? 'Описание отсутствует') ?></p>
                             
                             <div class="category-footer">
                                 <!-- Количество товаров -->
-                                <span><?= (int)($cat['products_count'] ?? 0) ?> товаров</span>
+                                <span><?= (int)$cat['products_count'] ?> товаров</span>
                                 
                                 <div>
-                                    <!-- Передаем ID категории в data-атрибут, чтобы потом можно было удалить или редактировать -->
                                     <button class="btn-edit" data-id="<?= $cat['id'] ?>">✏️</button>
                                     <button class="btn-delete" data-id="<?= $cat['id'] ?>">🗑️</button>
                                 </div>
